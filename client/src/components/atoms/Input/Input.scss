@@ -1,0 +1,21 @@
+.input-atom {
+  padding: 16px 15px;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  border-radius: 0.25rem;
+  border: none;
+  color: rgb(64 64 64);
+  &::placeholder {
+    color: rgb(163 163 163);
+  }
+  &:focus {
+    outline-color: orange;
+  }
+  &.disabled {
+    background-color: rgb(163 163 163);
+    color: rgb(64 64 64);
+    &::placeholder {
+      color: rgb(115 115 115);
+    }
+  }
+}

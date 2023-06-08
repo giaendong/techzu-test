@@ -1,0 +1,31 @@
+.button-atom {
+  padding: 8px 16px;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  &.filled {
+    background-color: orange;
+    color: rgb(229 229 229);
+    border: 1px orange solid;
+  }
+  &.outlined {
+    background-color: transparent;
+    color: orange;
+    border: 1px orange solid;
+  }
+  &.anchor {
+    text-decoration-line: underline;
+    color: orange;
+    background-color: transparent;
+    border: none;
+  }
+  &.inactive {
+    background-color: lightgray;
+    color: gray;
+  }
+  &.disabled {
+    background-color: gray;
+    color: black;
+  }
+}

@@ -1,9 +1,19 @@
-const { Signup, Signin } = require("../controllers/Auth.controller");
-const { UserVerification } = require("../middlewares/Auth.middleware");
-const router = require("express").Router();
+const UserMiddleware = require('../middlewares/User.middleware');
+const AuthMiddleware = require('../middlewares/Auth.middleware');
+const AuthController = require('../controllers/Auth.controller');
 
-router.post("/signup", Signup);
-router.post("/signin", Signin);
-router.post('/', UserVerification);
+module.exports.routesConfig = function (app) {
 
-module.exports = router;
+    app.post('/auth', [
+        UserMiddleware.hasAuthValidFields,
+        UserMiddleware.isPasswordAndUserMatch,
+        AuthController.login
+    ]);
+
+    app.post('/auth/refresh', [
+        AuthMiddleware.validJWTNeeded,
+        AuthMiddleware.verifyRefreshBodyField,
+        AuthMiddleware.validRefreshNeeded,
+        AuthController.login
+    ]);
+};

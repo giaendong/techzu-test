@@ -1,19 +1,54 @@
-const User = require("../models/User.model");
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 require("dotenv").config();
-const jwt = require("jsonwebtoken");
+const { JWT_KEY } = process.env;
 
-module.exports.UserVerification = (req, res) => {
-  const token = req.cookies.token
-  if (!token) {
-    return res.json({ status: false })
-  }
-  jwt.verify(token, process.env.JWT_KEY, async (err, data) => {
-    if (err) {
-     return res.json({ status: false })
+exports.verifyRefreshBodyField = (req, res, next) => {
+    if (req.body && req.body.refresh_token) {
+        return next();
     } else {
-      const user = await User.findById(data.id)
-      if (user) return res.json({ status: true, user: user.username })
-      else return res.json({ status: false })
+        return res.status(400).send({error: 'need to pass refresh_token field'});
     }
-  })
-}
+};
+
+exports.validRefreshNeeded = (req, res, next) => {
+    let b = Buffer.from(req.body.refresh_token, 'base64');
+    let refresh_token = b.toString();
+    let hash = crypto.createHmac('sha512', req.jwt.refreshKey).update(req.jwt.userId + JWT_KEY).digest("base64");
+    if (hash === refresh_token) {
+        req.body = req.jwt;
+        return next();
+    } else {
+        return res.status(400).send({error: 'Invalid refresh token'});
+    }
+};
+
+
+exports.validJWTNeeded = (req, res, next) => {
+    if (req.headers['authorization']) {
+        try {
+            let authorization = req.headers['authorization'].split(' ');
+            if (authorization[0] !== 'Bearer') {
+                return res.status(401).send();
+            } else {
+                req.jwt = jwt.verify(authorization[1], JWT_KEY);
+                return next();
+            }
+
+        } catch (err) {
+            return res.status(403).send();
+        }
+    } else {
+        return res.status(401).send();
+    }
+};
+
+exports.onlySelfCanDoThisAction = (req, res, next) => {
+  let userId = req.jwt.userId;
+  if (req.params && req.params.userId && userId === req.params.userId) {
+    return next();
+  } else {
+    return res.status(403).send();
+  }
+
+};
