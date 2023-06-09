@@ -1,18 +1,18 @@
-const UserModel = require('../models/User.model');
-const crypto = require('crypto');
+import { createUser, list, findById, patchUser, removeById } from '../models/User.model.js';
+import { randomBytes, createHmac } from 'crypto';
 
-exports.insert = (req, res) => {
-    let salt = crypto.randomBytes(16).toString('base64');
-    let hash = crypto.createHmac('sha512', salt).update(req.body.password).digest("base64");
+export function insert(req, res) {
+    let salt = randomBytes(16).toString('base64');
+    let hash = createHmac('sha512', salt).update(req.body.password).digest("base64");
     req.body.password = salt + "$" + hash;
     req.body.permissionLevel = 1;
-    UserModel.createUser(req.body)
+    createUser(req.body)
         .then((result) => {
             res.status(201).send({id: result._id});
         });
-};
+}
 
-exports.list = (req, res) => {
+export function getUserList(req, res) {
     let limit = req.query.limit && req.query.limit <= 100 ? parseInt(req.query.limit) : 10;
     let page = 0;
     if (req.query) {
@@ -21,43 +21,43 @@ exports.list = (req, res) => {
             page = Number.isInteger(req.query.page) ? req.query.page : 0;
         }
     }
-    UserModel.list(limit, page)
+    list(limit, page)
         .then((result) => {
             res.status(200).send(result);
         })
-};
+}
 
-exports.getById = (req, res) => {
-    UserModel.findById(req.params.userId)
+export function getUserById(req, res) {
+    findById(req.params.userId)
         .then((result) => {
             res.status(200).send(result);
         });
-};
+}
 
-exports.getSelf = (req, res) => {
-  UserModel.findById(req.jwt.userId)
+export function getSelf(req, res) {
+  findById(req.jwt.userId)
       .then((result) => {
           res.status(200).send(result);
       });
-};
+}
 
-exports.patchById = (req, res) => {
+export function patchUserById(req, res) {
     if (req.body.password) {
-        let salt = crypto.randomBytes(16).toString('base64');
-        let hash = crypto.createHmac('sha512', salt).update(req.body.password).digest("base64");
+        let salt = randomBytes(16).toString('base64');
+        let hash = createHmac('sha512', salt).update(req.body.password).digest("base64");
         req.body.password = salt + "$" + hash;
     }
 
-    UserModel.patchUser(req.params.userId, req.body)
+    patchUser(req.params.userId, req.body)
         .then((result) => {
             res.status(204).send({});
         });
 
-};
+}
 
-exports.removeById = (req, res) => {
-    UserModel.removeById(req.params.userId)
+export function removeUserById(req, res) {
+    removeById(req.params.userId)
         .then((result)=>{
             res.status(204).send({});
         });
-};
+}

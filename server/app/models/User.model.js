@@ -1,4 +1,4 @@
-const mongoose = require('../services/mongoose.service').mongoose;
+import { mongoose } from '../services/mongoose.service.js';
 
 const userSchema = new mongoose.Schema({
   email: {
@@ -36,27 +36,24 @@ userSchema.findById = function (cb) {
 const User = mongoose.model('Users', userSchema);
 
 
-exports.findByEmail = (email) => {
+export function findByEmail(email) {
     return User.find({email: email});
-};
+}
 
-exports.findById = (id) => {
-    return User.findById(id)
-        .select('-password')
-        .then((result) => {
-            result = result.toJSON();
-            delete result._id;
-            delete result.__v;
-            return result;
-        });
-};
+export async function findById(id) {
+  const result = await User.findById(id).select('-password');
+  result = result.toJSON();
+  delete result._id;
+  delete result.__v;
+  return result;
+}
 
-exports.createUser = (userData) => {
+export function createUser(userData) {
     const user = new User(userData);
     return user.save();
-};
+}
 
-exports.list = (perPage, page) => {
+export function list(perPage, page) {
     return new Promise((resolve, reject) => {
         User.find()
             .select('-password')
@@ -65,15 +62,15 @@ exports.list = (perPage, page) => {
             .then(users => resolve(users))
             .catch(err => reject(err))
     });
-};
+}
 
-exports.patchUser = (id, userData) => {
+export function patchUser(id, userData) {
     return User.findOneAndUpdate({
         _id: id
     }, userData);
-};
+}
 
-exports.removeById = (userId) => {
+export function removeById(userId) {
     return new Promise((resolve, reject) => {
         User.deleteMany({_id: userId}, (err) => {
             if (err) {
@@ -83,4 +80,4 @@ exports.removeById = (userId) => {
             }
         });
     });
-};
+}

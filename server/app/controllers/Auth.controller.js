@@ -1,13 +1,14 @@
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-require("dotenv").config();
+import jwt from 'jsonwebtoken';
+import { randomBytes, createHmac } from 'crypto';
+import dotenv from 'dotenv';
+dotenv.config();
 const { JWT_KEY } = process.env;
 
-exports.login = (req, res) => {
+export function login(req, res) {
     try {
         let refreshId = req.body.userId + JWT_KEY;
-        let salt = crypto.randomBytes(16).toString('base64');
-        let hash = crypto.createHmac('sha512', salt).update(refreshId).digest("base64");
+        let salt = randomBytes(16).toString('base64');
+        let hash = createHmac('sha512', salt).update(refreshId).digest("base64");
         req.body.refreshKey = salt;
         let token = jwt.sign(req.body, JWT_KEY);
         let b = Buffer.from(hash);
@@ -16,9 +17,9 @@ exports.login = (req, res) => {
     } catch (err) {
         res.status(500).send({errors: err});
     }
-};
+}
 
-exports.refresh_token = (req, res) => {
+export function refresh_token(req, res) {
     try {
         req.body = req.jwt;
         let token = jwt.sign(req.body, JWT_KEY);
@@ -26,4 +27,4 @@ exports.refresh_token = (req, res) => {
     } catch (err) {
         res.status(500).send({errors: err});
     }
-};
+}

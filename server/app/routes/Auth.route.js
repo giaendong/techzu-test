@@ -1,19 +1,19 @@
-const UserMiddleware = require('../middlewares/User.middleware');
-const AuthMiddleware = require('../middlewares/Auth.middleware');
-const AuthController = require('../controllers/Auth.controller');
+import { hasAuthValidFields, isPasswordAndUserMatch } from '../middlewares/User.middleware.js';
+import { validJWTNeeded, verifyRefreshBodyField, validRefreshNeeded } from '../middlewares/Auth.middleware.js';
+import { login } from '../controllers/Auth.controller.js';
 
-module.exports.routesConfig = function (app) {
+export function routesConfig (app) {
 
     app.post('/auth', [
-        UserMiddleware.hasAuthValidFields,
-        UserMiddleware.isPasswordAndUserMatch,
-        AuthController.login
+        hasAuthValidFields,
+        isPasswordAndUserMatch,
+        login
     ]);
 
     app.post('/auth/refresh', [
-        AuthMiddleware.validJWTNeeded,
-        AuthMiddleware.verifyRefreshBodyField,
-        AuthMiddleware.validRefreshNeeded,
-        AuthController.login
+        validJWTNeeded,
+        verifyRefreshBodyField,
+        validRefreshNeeded,
+        login
     ]);
-};
+}

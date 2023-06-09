@@ -1,5 +1,6 @@
-const mongoose = require('mongoose');
-require("dotenv").config();
+import mongoose, { connect } from 'mongoose';
+import dotenv from 'dotenv'
+dotenv.config()
 const { MONGO_DB_URL } = process.env;
 let count = 0;
 
@@ -9,7 +10,7 @@ const options = {
 };
 const connectWithRetry = () => {
     console.log('MongoDB connection with retry')
-    mongoose.connect(MONGO_DB_URL, options).then(()=>{
+    connect(MONGO_DB_URL, options).then(()=>{
         console.log('MongoDB is connected')
     }).catch(err=>{
         console.log('MongoDB connection unsuccessful, retry after 5 seconds. ', ++count);
@@ -19,4 +20,5 @@ const connectWithRetry = () => {
 
 connectWithRetry();
 
-exports.mongoose = mongoose;
+const _mongoose = mongoose;
+export { _mongoose as mongoose };

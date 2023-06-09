@@ -1,30 +1,30 @@
-const UserController = require('../controllers/User.controller');
-const AuthMiddleware = require('../middlewares/Auth.middleware');
+import { insert, getUserList, getUserById, patchUserById, removeUserById, getSelf } from '../controllers/User.controller.js';
+import { validJWTNeeded, onlySelfCanDoThisAction } from '../middlewares/Auth.middleware.js';
 
-module.exports.routesConfig = function (app) {
+export function routesConfig (app) {
     app.post('/users', [
-        UserController.insert
+        insert
     ]);
     app.get('/users', [
-        AuthMiddleware.validJWTNeeded,
-        UserController.list
+        validJWTNeeded,
+        getUserList
     ]);
     app.get('/users/:userId', [
-        AuthMiddleware.validJWTNeeded,
-        UserController.getById
+        validJWTNeeded,
+        getUserById
     ]);
     app.patch('/users/:userId', [
-        AuthMiddleware.validJWTNeeded,
-        AuthMiddleware.onlySelfCanDoThisAction,
-        UserController.patchById
+        validJWTNeeded,
+        onlySelfCanDoThisAction,
+        patchUserById
     ]);
     app.delete('/users/:userId', [
-        AuthMiddleware.validJWTNeeded,
-        AuthMiddleware.onlySelfCanDoThisAction,
-        UserController.removeById
+        validJWTNeeded,
+        onlySelfCanDoThisAction,
+        removeUserById
     ]);
     app.get('/self', [
-      AuthMiddleware.validJWTNeeded,
-      UserController.getSelf
+      validJWTNeeded,
+      getSelf
     ]);
-};
+}

@@ -1,10 +1,12 @@
-const express = require("express");
-const cors = require("cors");
+import express, { json } from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import {routesConfig as AuthRoute} from "./app/routes/Auth.route.js";
+import {routesConfig as UserRoute} from "./app/routes/User.route.js";
+import {routesConfig as CommentRoute} from "./app/routes/Comment.route.js";
+import dotenv from 'dotenv';
+dotenv.config();
 const app = express();
-require("dotenv").config();
-const cookieParser = require("cookie-parser");
-const authRoute = require("./app/routes/Auth.route");
-const userRoute = require("./app/routes/User.route")
 const { PORT } = process.env;
 
 app.use(
@@ -16,9 +18,10 @@ app.use(
 );
 app.use(cookieParser());
 
-app.use(express.json());
-authRoute.routesConfig(app);
-userRoute.routesConfig(app);
+app.use(json());
+AuthRoute(app);
+UserRoute(app);
+CommentRoute(app);
 
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);

@@ -1,7 +1,7 @@
-const UserModel = require('../models/User.model');
-const crypto = require('crypto');
+import { findByEmail } from '../models/User.model.js';
+import { createHmac } from 'crypto';
 
-exports.hasAuthValidFields = (req, res, next) => {
+export function hasAuthValidFields(req, res, next) {
     let errors = [];
 
     if (req.body) {
@@ -20,17 +20,17 @@ exports.hasAuthValidFields = (req, res, next) => {
     } else {
         return res.status(400).send({errors: 'Missing email and password fields'});
     }
-};
+}
 
-exports.isPasswordAndUserMatch = (req, res, next) => {
-    UserModel.findByEmail(req.body.email)
+export function isPasswordAndUserMatch(req, res, next) {
+    findByEmail(req.body.email)
         .then((user)=>{
             if(!user[0]){
                 res.status(404).send({statusCode: 404, message: 'Invalid email or password'});
             }else{
                 let passwordFields = user[0].password.split('$');
                 let salt = passwordFields[0];
-                let hash = crypto.createHmac('sha512', salt).update(req.body.password).digest("base64");
+                let hash = createHmac('sha512', salt).update(req.body.password).digest("base64");
                 if (hash === passwordFields[1]) {
                     req.body = {
                         userId: user[0]._id,
@@ -45,4 +45,4 @@ exports.isPasswordAndUserMatch = (req, res, next) => {
                 }
             }
         });
-};
+}
