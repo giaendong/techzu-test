@@ -14,7 +14,7 @@ const Router: React.FC = () => {
     <BrowserRouter>
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={isAuthenticated ? <Home /> : <Navigate to='/login' /> } />
           <Route path="/login" element={isAuthenticated ? <Navigate to='/' /> : <Login />} />
           <Route path="/register" element={isAuthenticated ? <Navigate to='/' /> : <Register />} />
         </Routes>

@@ -15,29 +15,21 @@ const commentSchema = new mongoose.Schema({
     ref: "Comments",
     default: null,
   },
-  createdAt: {
-    type: Date,
-    default: new Date(),
-  },
-  updatedAt: {
-    type: Date,
-    default: new Date(),
-  },
   deletedAt: {
     type: Date,
     default: null,
   },
   replies: [{
     type: mongoose.Types.ObjectId,
-    ref: "Comments"
+    ref: "Comments",
+    index: true
   }]
-});
+}, { timestamps: true });
 
 commentSchema.virtual('id').get(function () {
     return this._id.toHexString();
 });
 
-// Ensure virtual fields are serialised.
 commentSchema.set('toJSON', {
     virtuals: true
 });
@@ -71,16 +63,37 @@ export function listReply(perPage, page, parentId) {
     });
 }
 
+export function countReplies(parentId) {
+  return Comment.countDocuments({parentId, deletedAt: null});
+}
+
 export function listParent(perPage, page) {
   return new Promise((resolve, reject) => {
-      Comment.find({parentId: null})
-          .populate({path: 'replies', perDocumentLimit: 10})
+      Comment.find({parentId: null, deletedAt: null})
+          .sort({createdAt: -1})
+          .populate({
+            path: 'replies',
+            perDocumentLimit: 3,
+            options: {
+              sort: {
+                createdAt: -1
+              }
+            },
+            populate: {
+              path: 'author',
+              select: '-password',
+            }
+          })
           .populate('author', '-password')
           .limit(perPage)
-          .skip(perPage * page)
+          .skip(perPage * (page - 1))
           .then(comment => resolve(comment))
           .catch(err => reject(err))
   });
+}
+
+export function countComment() {
+  return Comment.countDocuments({parentId: null, deletedAt: null});
 }
 
 export function patchComment(id, commentData) {
@@ -88,13 +101,5 @@ export function patchComment(id, commentData) {
 }
 
 export function removeById(id) {
-    return new Promise((resolve, reject) => {
-        Comment.deleteMany({_id: id}, (err) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(err);
-            }
-        });
-    });
+  return Comment.findByIdAndUpdate(id, {deletedAt: new Date().toISOString()});
 }

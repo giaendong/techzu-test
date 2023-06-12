@@ -1,12 +1,10 @@
 import { getAccessToken } from "../configs/localStorage";
 
-export const getHeaderInfo = async function () {
-  let token = await getAccessToken();
+export const getHeaderInfo = function () {
+  let token = getAccessToken();
   return {
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
   };
   
 };

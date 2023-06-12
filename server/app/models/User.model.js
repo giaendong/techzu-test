@@ -13,12 +13,8 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, "Your password is required"],
-  },
-  createdAt: {
-    type: Date,
-    default: new Date(),
-  },
-});
+  }
+}, { timestamps: true });
 
 userSchema.virtual('id').get(function () {
     return this._id.toHexString();
@@ -42,7 +38,6 @@ export function findByEmail(email) {
 
 export async function findById(id) {
   const result = await User.findById(id).select('-password');
-  result = result.toJSON();
   delete result._id;
   delete result.__v;
   return result;
@@ -58,7 +53,7 @@ export function list(perPage, page) {
         User.find()
             .select('-password')
             .limit(perPage)
-            .skip(perPage * page)
+            .skip(perPage * (page - 1))
             .then(users => resolve(users))
             .catch(err => reject(err))
     });

@@ -1,10 +1,11 @@
 import React from 'react';
 import Loader from '../../molecules/Loader';
+import './LoadingScreen.scss';
 
 const LoadingScreen: React.FC = () => {
   return (
-    <div className='flex items-center justify-center w-screen h-screen bg-neutral-800'>
-      <div className='flex justify-center items-center rounded-xl bg-opacity-50 w-24 h-24'>
+    <div className='loading-screen-organism'>
+      <div className='wrapper'>
         <Loader />
       </div>
     </div>

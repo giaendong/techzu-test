@@ -23,14 +23,12 @@ const Navbar: React.FC = () => {
         <div className='flex flex-row items-center gap-2'>
           {
             isAuthenticated ?
-            <>
-              <h3>{currentUserData?.username}</h3>
               <div
                 role='button'
                 className='w-4 h-4 flex justify-center items-center rounded-full bg-orange-500 text-white uppercase p-3'
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-              >{currentUserData?.username.charAt(0)}</div>
-            </> : <Link to={'/login'} className='text-teal-400 no-underline'>Login / Register</Link>
+              >{currentUserData?.username.charAt(0)}</div> :
+              <Link to={'/login'} className='text-teal-400 no-underline'>Login / Register</Link>
           }
         </div>
       </div>
@@ -39,6 +37,8 @@ const Navbar: React.FC = () => {
       }`}>
         <div className='flex flex-col'>
           <div className='self-end'><span role='button' onClick={() => setIsMenuOpen(!isMenuOpen)}>&#10005;</span></div>
+          <span className='text-xl text-neutral-200'>{currentUserData?.username}</span>
+          <span className='text-sm text-neutral-200'>{currentUserData?.email}</span>
         </div>
         <div className='border-t border-neutral-500 py-5'>
           <Button buttonType='anchor' onClick={onLogout} className='no-underline text-neutral-500 self-start'>Logout</Button>

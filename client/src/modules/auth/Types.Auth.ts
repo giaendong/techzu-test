@@ -3,6 +3,7 @@ export type UserType = {
   username: string;
   email: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export type RegisterParams = {

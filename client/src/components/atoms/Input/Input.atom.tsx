@@ -1,13 +1,14 @@
 import React from 'react';
 import './Input.scss'
 
-const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => {
+const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({type, disabled, className, ...props}) => {
   return (
     <input
-      type={props.type || 'text'}
+      type={type || 'text'}
       className={`
         input-atom
-        ${props.disabled ? ' disabled' : ''}
+        ${disabled ? ' disabled' : ''}
+        ${className ? ` ${className}` : ''}
       `}
       {...props}
     />

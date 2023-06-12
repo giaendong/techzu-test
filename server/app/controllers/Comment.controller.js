@@ -1,11 +1,13 @@
-import { createComment, listReply, listParent, findById, patchComment, removeById } from '../models/Comment.model.js';
-import { findById as findUserById } from '../models/User.model.js';
+import { createComment, listReply, listParent, findById, patchComment, removeById, countComment } from '../models/Comment.model.js';
 
 export async function insert(req, res) {
   try {
     const result = await createComment({...req.body, author: req.jwt.userId});
-    await patchComment(req.body.parentId, {$push: {replies: result._id}})
+    if (req.body.parentId && result._id) {
+      await patchComment(req.body.parentId, {$addToSet: {replies: result._id}});
+    }
     res.status(201).send({id: result._id});
+    global.io.emit('comments', {id: result._id, type: 'insert', userId: req.jwt.userId, isNotReply: req.body.parentId ? false : true});
   } catch (error) {
     res.status(500).send({ errorCode: 500, message: 'failed: createComment'})
   }
@@ -27,19 +29,25 @@ export function getReplyList(req, res) {
         })
 }
 
-export function getCommentList(req, res) {
+export async function getCommentList(req, res) {
   let limit = req.query.limit && req.query.limit <= 100 ? parseInt(req.query.limit) : 10;
-  let page = 0;
+  let page = 1;
   if (req.query) {
       if (req.query.page) {
           req.query.page = parseInt(req.query.page);
-          page = Number.isInteger(req.query.page) ? req.query.page : 0;
+          page = Number.isInteger(req.query.page) ? req.query.page : 1;
       }
   }
-  listParent(limit, page)
-      .then((result) => {
-          res.status(200).send(result);
-      })
+  try {
+    const comments = await listParent(limit, page);
+    const count = await countComment();
+    res.status(200).send({
+      comments,
+      metadata: {count, pageNumber: page, pageSize: limit}
+    });
+  } catch (err) {
+    res.status(500).send({ errorCode: 500, message: 'failed: getCommentList'})
+  }
 }
 
 export function getCommentById(req, res) {
@@ -67,5 +75,6 @@ export function removeCommentById(req, res) {
     removeById(req.params.id)
         .then((result)=>{
             res.status(204).send({});
+            global.io.emit('comments', {id: req.params.id, type: 'delete', userId: req.jwt.userId});
         });
 }

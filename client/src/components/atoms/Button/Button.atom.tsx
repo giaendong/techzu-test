@@ -12,7 +12,7 @@ const Button: React.FC<ButtonProps> = ({ buttonType = 'filled', className, ...pr
       className={`
         button-atom
         ${!props.disabled && buttonType === 'filled' ? ' filled' : ''}
-        ${!props.disabled && buttonType === 'outlined' ? ' outlinde' : ''}
+        ${!props.disabled && buttonType === 'outlined' ? ' outlined' : ''}
         ${!props.disabled && buttonType === 'anchor' ? ' anchor' : ''}
         ${!props.disabled && buttonType === 'inactive' ? ' inactive' : ''}
         ${props.disabled ? ' disabled' : ''}
