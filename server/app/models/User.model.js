@@ -37,7 +37,7 @@ export function findByEmail(email) {
 }
 
 export async function findById(id) {
-  const result = await User.findById(id).select('-password');
+  let result = await User.findById(id).select('-password');
   delete result._id;
   delete result.__v;
   return result;

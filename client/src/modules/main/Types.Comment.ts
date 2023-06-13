@@ -23,6 +23,16 @@ export type GetCommentListResponse = {
   metadata: MetaDataType;
 }
 
+export type GetRepliesParams = {
+  parentId: string;
+}
+
+export type GetRepliesResponse = {
+  comment: CommentType;
+  replies: CommentType[];
+  metadata: MetaDataType;
+}
+
 export type PostCommentParams = {
   comment: string;
   parentId?: string;

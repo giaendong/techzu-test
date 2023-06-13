@@ -1,4 +1,4 @@
-import { createComment, listReply, listParent, findById, patchComment, removeById, countComment } from '../models/Comment.model.js';
+import { createComment, listReply, listParent, findById, patchComment, removeById, countComment, countReplies } from '../models/Comment.model.js';
 
 export async function insert(req, res) {
   try {
@@ -7,26 +7,27 @@ export async function insert(req, res) {
       await patchComment(req.body.parentId, {$addToSet: {replies: result._id}});
     }
     res.status(201).send({id: result._id});
-    global.io.emit('comments', {id: result._id, type: 'insert', userId: req.jwt.userId, isNotReply: req.body.parentId ? false : true});
+    global.io.emit('comments', {id: result._id, type: 'insert', userId: req.jwt.userId, replyTo: req.body.parentId});
   } catch (error) {
     res.status(500).send({ errorCode: 500, message: 'failed: createComment'})
   }
 }
 
-export function getReplyList(req, res) {
-    let limit = req.query.limit && req.query.limit <= 100 ? parseInt(req.query.limit) : 10;
-    let page = 0;
+export async function getReplyList(req, res) {
     const parentId = req.query.parentId;
-    if (req.query) {
-        if (req.query.page) {
-            req.query.page = parseInt(req.query.page);
-            page = Number.isInteger(req.query.page) ? req.query.page : 0;
-        }
+    try {
+      const replies = await listReply(parentId);
+      const count = await countReplies(parentId);
+      const comment = await findById(parentId);
+      res.status(200).send({
+        comment,
+        replies,
+        metadata: {count, pageNumber: 1, pageSize: count}
+      });
+    } catch (err) {
+      console.log(err)
+      res.status(500).send({ errorCode: 500, message: 'failed: getCommentList'})
     }
-    listReply(limit, page, parentId)
-        .then((result) => {
-            res.status(200).send(result);
-        })
 }
 
 export async function getCommentList(req, res) {

@@ -1,10 +1,10 @@
 import React, { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { SlPaperPlane, SlActionUndo, SlTrash, SlLike, SlDislike, SlArrowDown } from "react-icons/sl";
+import { SlPaperPlane, SlActionUndo, SlTrash, SlLike, SlDislike, SlArrowDown, SlClose } from "react-icons/sl";
 import { useQueryClient } from 'react-query';
 import Navbar from '../../../../components/organisms/Navbar';
 import Input from '../../../../components/atoms/Input';
 import Button from '../../../../components/atoms/Button';
-import { useGetCommentListQuery, useGetCommentListQueryKey } from '../../queries';
+import { useGetCommentListQuery, useGetCommentListQueryKey, useGetRepliesQuery, useGetRepliesQueryKey } from '../../queries';
 import { CommentType } from '../../Types.Comment';
 import { AuthContext } from '../../../auth/Auth.context';
 import usePostComment from '../../mutations/PostComment.mutation';
@@ -12,30 +12,50 @@ import useDeleteComment from '../../mutations/DeleteComment.mutation';
 import socket from '../../../../configs/socket.config';
 import { BasicSocketType } from '../../../../configs/Types.Socket';
 import { format, parseISO } from 'date-fns';
+import LoadingScreen from '../../../../components/organisms/LoadingScreen/LoadingScreen.organism';
 
 const Home: React.FC = (() => {
   const queryClient = useQueryClient();
   const { currentUserData } = useContext(AuthContext);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const repliesEndRef = useRef<null | HTMLDivElement>(null);
   const [page, setPage] = useState(1);
   const [commentText, setCommentText] = useState('');
+  const [replyText, setReplyText] = useState('');
   const [postIsLoading, setPostIsLoading] = useState(false);
   const [errMessage, setErrMessage] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showRepliesScrollButton, setShowRepliesScrollButton] = useState(false);
+  const [showRepliesId, setShowRepliesId] = useState('');
+  const [socketActiveId, setSocketActiveId] = useState<BasicSocketType | null>(null);
   const limit = 10;
 
   const {data, isLoading, isFetchedAfterMount} = useGetCommentListQuery({page, limit});
   const commentsData = useMemo(() => data?.comments, [data?.comments]);
   const commentMetaData = useMemo(() => data?.metadata, [data?.metadata]);
-  
+
+  const repliesQuery = useGetRepliesQuery({parentId: showRepliesId});
+  const replies = useMemo(() => repliesQuery.data?.replies, [repliesQuery.data?.replies]);
+  const activeComment = useMemo(() => repliesQuery.data?.comment, [repliesQuery.data?.comment]);
+  const isRepliesLoading = repliesQuery.isLoading;
+  const isRepliesFetchedAfterMount = repliesQuery.isFetchedAfterMount;
   const scrollToBottom = useCallback(() => 
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  , []);
+
+  const scrollToBottomReplies = useCallback(() =>
+    repliesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   , []);
 
   const postCommentMutation = usePostComment({
     onSuccess: () => {
       setPostIsLoading(false);
       setCommentText('');
+      setReplyText('');
+      if (showRepliesId !== '') {
+        queryClient.refetchQueries([useGetRepliesQueryKey, showRepliesId]);
+        scrollToBottomReplies();
+      }
       if (page !== 1) {
         setPage(1);
       } else {
@@ -53,6 +73,9 @@ const Home: React.FC = (() => {
     onSuccess: () => {
       setPostIsLoading(false);
       queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit]);
+      if (showRepliesId) {
+        queryClient.refetchQueries([useGetRepliesQueryKey, showRepliesId]);
+      }
     },
     onError: (err: any) => {
       setPostIsLoading(false);
@@ -67,6 +90,22 @@ const Home: React.FC = (() => {
   },[isFetchedAfterMount, scrollToBottom]);
 
   useEffect(() => {
+    if (isRepliesFetchedAfterMount) {
+      scrollToBottomReplies();
+    }
+  },[isRepliesFetchedAfterMount, scrollToBottomReplies]);
+
+  useEffect(() => {
+    if ((socketActiveId?.replyTo !== '' && socketActiveId?.replyTo === showRepliesId) || socketActiveId?.type === 'delete') {
+      queryClient.invalidateQueries([useGetRepliesQueryKey, showRepliesId]);
+      if (socketActiveId.type === 'insert') {
+        setShowRepliesScrollButton(true)
+      }
+      setSocketActiveId(null);
+    }
+  }, [queryClient, showRepliesId, socketActiveId])
+
+  useEffect(() => {
     socket.connect();
 
     const onConnect = () => {
@@ -78,14 +117,20 @@ const Home: React.FC = (() => {
     }
 
     const onComments = (socketData: BasicSocketType) => {
-      console.log(socketData);
-      if (socketData?.isNotReply === true) {
-        console.log('ok');
-        setShowScrollButton(true);
+      console.log(showRepliesId, socketData, activeComment?.id)
+      if (!socketData.replyTo) {
+        if (socketData.type === 'insert') {
+          setShowScrollButton(true);
+        }
+      } else {
+        setSocketActiveId(socketData);
       }
       if (socketData && socketData.id && socketData.userId !== currentUserData?.id) {
-        console.log('oks');
         queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit]);
+      }
+      if (socketData.type === 'delete') {
+        setSocketActiveId(socketData);
+        queryClient.refetchQueries([useGetCommentListQueryKey, page, limit]);
       }
     }
 
@@ -102,11 +147,11 @@ const Home: React.FC = (() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const postComment = useCallback(() => {
+  const postComment = useCallback((parentId?: string) => {
     setPostIsLoading(true);
     setErrMessage('');
-    postCommentMutation.mutate({ comment: commentText });
-  },[commentText, postCommentMutation]);
+    postCommentMutation.mutate({ comment: parentId ? replyText : commentText, parentId });
+  },[commentText, postCommentMutation, replyText]);
 
   const deleteComment = useCallback((id: string) => {
     setPostIsLoading(true);
@@ -114,10 +159,10 @@ const Home: React.FC = (() => {
     deleteCommentMutation.mutate({ id });
   },[deleteCommentMutation]);
 
-  const renderCard = useCallback((comment: CommentType, isReply?: boolean) => {
+  const renderCard = useCallback((comment: CommentType, isReply?: boolean, isRepliesModalOpened?:boolean) => {
     const isSelf = currentUserData?.id === comment.author.id;
     return (
-      <div className={`w-full flex flex-col rounded-md px-3 py-2 gap-2 ${isSelf ? 'bg-teal-700' : 'bg-neutral-700'}`} key={comment.id}>
+      <div className={`w-full flex flex-col rounded-md px-3 py-2 gap-2 ${isSelf ? 'bg-teal-700' : 'bg-neutral-700'} ${isRepliesModalOpened ? 'fixed top-0' : ''}`} key={comment.id}>
         <div className='flex flex-row justify-between items-center'>
           <div className='flex flex-row gap-2 items-center'>
             <div className='w-4 h-4 flex justify-center items-center rounded-full bg-orange-500 text-white uppercase p-3'>{comment.author.username.charAt(0)}</div>
@@ -136,15 +181,19 @@ const Home: React.FC = (() => {
           {comment.comment}
         </p>
         <div className='flex flex-row justify-between'>
-          <span className='flex flex-row justify-start items-center gap-2 cursor-pointer'>
+          <div className='flex flex-row justify-start items-center gap-2 cursor-pointer'>
           {
-            !isReply && 
-              <>
+            !isReply && !isRepliesModalOpened && 
+              <div  
+                className='flex flex-row justify-start items-center gap-2 cursor-pointer'
+                role='button'
+                onClick={() => setShowRepliesId(comment.id)}
+              >
                 <SlActionUndo className='cursor-pointer'/>
                 <span>Replies</span>
-              </>
+              </div>
           }
-          </span>
+          </div>
           <div className='flex flex-row justify-end items-center basis-1/2 gap-10'>
             <span className='flex flex-row justify-center items-center gap-2 cursor-pointer'>
               <SlDislike className='cursor-pointer'/>
@@ -180,6 +229,44 @@ const Home: React.FC = (() => {
       )
     }).reverse()
   ,[commentsData, renderCard])
+
+  const renderReplies = useMemo(() => isRepliesLoading ? <LoadingScreen /> :
+    <div className='w-screen h-screen fixed bg-neutral-900 bg-opacity-90 z-50 top-0 left-0 right-0 bottom-0 flex flex-col items-center'>
+      <div className='w-full lg:w-1/3 lg:max-h-[90vh] flex flex-col items-center gap-3 justify-between overflow-scroll'>
+        <h1 className='pt-20'>Replies</h1>
+        { activeComment && renderCard(activeComment, false, false) }
+        <div className='w-full flex flex-col bg-neutral-800 lg:rounded-md overflow-scroll grow p-2 gap-3'>
+          <div className='flex flex-row gap-2'>
+            <div className='h-full border-r border-orange-500 border-solid px-2' />
+            <div className='flex flex-col flex-1 gap-2'>
+              { replies && replies.map((reply) => renderCard(reply, !!reply.parentId)).reverse()}
+            </div>
+          </div>
+          <div
+            className={`self-center absolute text-sm rounded bg-sky-600 border border-neutral-200 shadow-lg flex flex-row items-center px-3 py-2 gap-2 ${!showRepliesScrollButton ? 'hidden' : ''}`}
+            role='button'
+            onClick={() => [scrollToBottomReplies(), setShowRepliesScrollButton(false)]}>
+            <span>New Replies!</span>
+            <SlArrowDown />
+          </div>
+          <div ref={repliesEndRef} />
+        </div>
+        <div className='flex flex-row w-full gap-2 px-1'>
+          <div className='flex-1'>
+            <Input
+              placeholder='Type your message here...'
+              className='min-w-full'
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && postComment(activeComment?.id)}
+              value={replyText}
+            />
+          </div>
+          <Button onClick={() => postComment(activeComment?.id)} disabled={isRepliesLoading || postIsLoading}><SlPaperPlane color='white' /></Button>
+          </div>
+      </div>
+      <SlClose className='absolute top-5 right-5 text-3xl cursor-pointer' role='button' onClick={() => [setShowRepliesId(''), setReplyText('')]} />
+    </div>
+  ,[isRepliesLoading, activeComment, renderCard, replies, showRepliesScrollButton, replyText, postIsLoading, scrollToBottomReplies, postComment])
 
   return (
     <div className='w-screen'>
@@ -223,13 +310,14 @@ const Home: React.FC = (() => {
                 value={commentText}
               />
             </div>
-            <Button onClick={postComment} disabled={isLoading || postIsLoading}><SlPaperPlane color='white' /></Button>
+            <Button onClick={() => postComment()} disabled={isLoading || postIsLoading}><SlPaperPlane color='white' /></Button>
           </div>
         </div>
         {
           errMessage && <span className='text-red-400 w-full text-center'>{errMessage}</span>
         }
       </div>
+      {showRepliesId && renderReplies}
     </div>
   )
 });

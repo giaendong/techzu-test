@@ -41,7 +41,7 @@ commentSchema.findById = function (cb) {
 const Comment = mongoose.model('Comments', commentSchema);
 
 export async function findById(id) {
-  const result = await Comment.findById(id);
+  let result = await Comment.findById(id).populate('author', '-password');
   result = result.toJSON();
   delete result._id;
   delete result.__v;
@@ -53,11 +53,11 @@ export function createComment(commentData) {
     return comment.save();
 }
 
-export function listReply(perPage, page, parentId) {
+export function listReply(parentId) {
     return new Promise((resolve, reject) => {
-        Comment.find({parentId})
-            .limit(perPage)
-            .skip(perPage * page)
+        Comment.find({parentId, deletedAt: null})
+            .sort({createdAt: -1})
+            .populate('author', '-password')
             .then(comment => resolve(comment))
             .catch(err => reject(err))
     });
@@ -77,11 +77,14 @@ export function listParent(perPage, page) {
             options: {
               sort: {
                 createdAt: -1
-              }
+              },
             },
             populate: {
               path: 'author',
               select: '-password',
+            },
+            match: {
+              deletedAt: null
             }
           })
           .populate('author', '-password')
