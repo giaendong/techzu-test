@@ -2,7 +2,7 @@ import { MetaDataType } from "../../commons/Types.Common";
 import { UserType } from "../auth/Types.Auth";
 
 export type CommentType = {
-  id: string;
+  _id: string;
   author: UserType;
   comment: string;
   parentId: string;
@@ -10,8 +10,18 @@ export type CommentType = {
   updatedAt: Date;
   deletedAt: Date | null;
   replies: CommentType[];
+  likeCount: Number;
+  dislikeCount: Number;
+  userLikes: LikesType[];
 }
 
+export type LikesType = {
+  author: string;
+  comment: string;
+  like: Number;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export type GetCommentListParams = {
   page: number;
@@ -47,4 +57,13 @@ export type DeleteCommentParams = {
 }
 
 export type DeleteCommentResponse = {
+}
+
+export type PostReviewParams = {
+  commentId: string;
+  like: number;
+}
+
+export type PostReviewResponse = {
+  ok: boolean;
 }

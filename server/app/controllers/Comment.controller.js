@@ -9,6 +9,7 @@ export async function insert(req, res) {
     res.status(201).send({id: result._id});
     global.io.emit('comments', {id: result._id, type: 'insert', userId: req.jwt.userId, replyTo: req.body.parentId});
   } catch (error) {
+    console.log(error)
     res.status(500).send({ errorCode: 500, message: 'failed: createComment'})
   }
 }
@@ -16,7 +17,7 @@ export async function insert(req, res) {
 export async function getReplyList(req, res) {
     const parentId = req.query.parentId;
     try {
-      const replies = await listReply(parentId);
+      const replies = await listReply(parentId, req.jwt.userId);
       const count = await countReplies(parentId);
       const comment = await findById(parentId);
       res.status(200).send({
@@ -40,7 +41,7 @@ export async function getCommentList(req, res) {
       }
   }
   try {
-    const comments = await listParent(limit, page);
+    const comments = await listParent(limit, page, req.jwt.userId);
     const count = await countComment();
     res.status(200).send({
       comments,

@@ -6,6 +6,7 @@ import { createServer } from 'http';
 import {routesConfig as AuthRoute} from "./app/routes/Auth.route.js";
 import {routesConfig as UserRoute} from "./app/routes/User.route.js";
 import {routesConfig as CommentRoute} from "./app/routes/Comment.route.js";
+import {routesConfig as ReviewRoute} from "./app/routes/Review.route.js";
 import dotenv from 'dotenv';
 dotenv.config();
 const app = express();
@@ -24,6 +25,7 @@ app.use(json());
 AuthRoute(app);
 UserRoute(app);
 CommentRoute(app);
+ReviewRoute(app);
 
 const server = createServer(app);
 const io = new Server(server, {

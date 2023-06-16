@@ -13,6 +13,7 @@ import socket from '../../../../configs/socket.config';
 import { BasicSocketType } from '../../../../configs/Types.Socket';
 import { format, parseISO } from 'date-fns';
 import LoadingScreen from '../../../../components/organisms/LoadingScreen/LoadingScreen.organism';
+import usePostReview from '../../mutations/PostReview.mutation';
 
 const Home: React.FC = (() => {
   const queryClient = useQueryClient();
@@ -83,6 +84,19 @@ const Home: React.FC = (() => {
     },
   });
 
+  const postReviewMutation = usePostReview({
+    onSuccess: () => {
+      queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit]);
+      if (showRepliesId) {
+        queryClient.refetchQueries([useGetRepliesQueryKey, showRepliesId]);
+      }
+    },
+    onError: (err: any) => {
+      setPostIsLoading(false);
+      setErrMessage(`Something went wrong. ${err.message}`);
+    },
+  })
+
   useEffect(() => {
     if (isFetchedAfterMount) {
       scrollToBottom();
@@ -117,7 +131,6 @@ const Home: React.FC = (() => {
     }
 
     const onComments = (socketData: BasicSocketType) => {
-      console.log(showRepliesId, socketData, activeComment?.id)
       if (!socketData.replyTo) {
         if (socketData.type === 'insert') {
           setShowScrollButton(true);
@@ -125,7 +138,7 @@ const Home: React.FC = (() => {
       } else {
         setSocketActiveId(socketData);
       }
-      if (socketData && socketData.id && socketData.userId !== currentUserData?.id) {
+      if (socketData && socketData.id && socketData.userId !== currentUserData?._id) {
         queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit]);
       }
       if (socketData.type === 'delete') {
@@ -159,10 +172,15 @@ const Home: React.FC = (() => {
     deleteCommentMutation.mutate({ id });
   },[deleteCommentMutation]);
 
+  const postReview = useCallback((commentId: string, like: number) => {
+    postReviewMutation.mutate({commentId, like})
+  }, [postReviewMutation])
+
   const renderCard = useCallback((comment: CommentType, isReply?: boolean, isRepliesModalOpened?:boolean) => {
-    const isSelf = currentUserData?.id === comment.author.id;
+    const isSelf = currentUserData?._id === comment.author._id;
+    const currentLikeBySelf = comment?.userLikes?.[0]?.like || 0;
     return (
-      <div className={`w-full flex flex-col rounded-md px-3 py-2 gap-2 ${isSelf ? 'bg-teal-700' : 'bg-neutral-700'} ${isRepliesModalOpened ? 'fixed top-0' : ''}`} key={comment.id}>
+      <div className={`w-full flex flex-col rounded-md px-3 py-2 gap-2 ${isSelf ? 'bg-teal-700' : 'bg-neutral-700'}`} key={comment._id}>
         <div className='flex flex-row justify-between items-center'>
           <div className='flex flex-row gap-2 items-center'>
             <div className='w-4 h-4 flex justify-center items-center rounded-full bg-orange-500 text-white uppercase p-3'>{comment.author.username.charAt(0)}</div>
@@ -173,7 +191,7 @@ const Home: React.FC = (() => {
           </div>
           <div className='flex flex-row gap-5'>
             {
-              isSelf && <SlTrash className='cursor-pointer' onClick={() => deleteComment(comment.id)}/>
+              isSelf && !isRepliesModalOpened && <SlTrash className='cursor-pointer' onClick={() => deleteComment(comment._id)}/>
             }
           </div>
         </div>
@@ -187,33 +205,36 @@ const Home: React.FC = (() => {
               <div  
                 className='flex flex-row justify-start items-center gap-2 cursor-pointer'
                 role='button'
-                onClick={() => setShowRepliesId(comment.id)}
+                onClick={() => setShowRepliesId(comment._id)}
               >
                 <SlActionUndo className='cursor-pointer'/>
                 <span>Replies</span>
               </div>
           }
           </div>
-          <div className='flex flex-row justify-end items-center basis-1/2 gap-10'>
-            <span className='flex flex-row justify-center items-center gap-2 cursor-pointer'>
-              <SlDislike className='cursor-pointer'/>
-              <span>1</span>
-            </span>
-            <span className='flex flex-row justify-center items-center gap-2 cursor-pointer'>
-              <SlLike className='cursor-pointer'/>
-              <span>205</span>
-            </span>
-          </div>
+          {
+            !isRepliesModalOpened &&
+              <div className='flex flex-row justify-end items-center basis-1/2 gap-10'>
+                <span className='flex flex-row justify-center items-center gap-2 cursor-pointer' role='button' onClick={() => postReview(comment._id, currentLikeBySelf === -1 ? 0 : -1)}>
+                  <SlDislike className='cursor-pointer' color={currentLikeBySelf === -1 ? 'grey' : 'white'}/>
+                  <span>{comment?.dislikeCount?.toString()}</span>
+                </span>
+                <span className='flex flex-row justify-center items-center gap-2 cursor-pointer' role='button' onClick={() => postReview(comment._id, currentLikeBySelf === 1 ? 0 : 1)}>
+                  <SlLike className='cursor-pointer' color={currentLikeBySelf === 1 ? 'skyblue' : 'white'}/>
+                  <span>{comment?.likeCount?.toString()}</span>
+                </span>
+              </div>
+          }
         </div>
       </div>
     )
   }
-  ,[currentUserData?.id, deleteComment])
+  ,[currentUserData?._id, deleteComment, postReview])
 
   const renderComments = useMemo(() =>
     commentsData?.map((comment) => {
       return (
-        <Fragment key={comment.id}>
+        <Fragment key={comment._id}>
           { renderCard(comment) }
           { comment.replies.length > 0 && 
             <div className='flex flex-row gap-2'>
@@ -234,7 +255,7 @@ const Home: React.FC = (() => {
     <div className='w-screen h-screen fixed bg-neutral-900 bg-opacity-90 z-50 top-0 left-0 right-0 bottom-0 flex flex-col items-center'>
       <div className='w-full lg:w-1/3 lg:max-h-[90vh] flex flex-col items-center gap-3 justify-between overflow-scroll'>
         <h1 className='pt-20'>Replies</h1>
-        { activeComment && renderCard(activeComment, false, false) }
+        { activeComment && renderCard(activeComment, false, true) }
         <div className='w-full flex flex-col bg-neutral-800 lg:rounded-md overflow-scroll grow p-2 gap-3'>
           <div className='flex flex-row gap-2'>
             <div className='h-full border-r border-orange-500 border-solid px-2' />
@@ -257,11 +278,11 @@ const Home: React.FC = (() => {
               placeholder='Type your message here...'
               className='min-w-full'
               onChange={(e) => setReplyText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && postComment(activeComment?.id)}
+              onKeyDown={(e) => e.key === 'Enter' && postComment(activeComment?._id)}
               value={replyText}
             />
           </div>
-          <Button onClick={() => postComment(activeComment?.id)} disabled={isRepliesLoading || postIsLoading}><SlPaperPlane color='white' /></Button>
+          <Button onClick={() => postComment(activeComment?._id)} disabled={isRepliesLoading || postIsLoading}><SlPaperPlane color='white' /></Button>
           </div>
       </div>
       <SlClose className='absolute top-5 right-5 text-3xl cursor-pointer' role='button' onClick={() => [setShowRepliesId(''), setReplyText('')]} />

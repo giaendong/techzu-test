@@ -24,7 +24,7 @@ const AuthProvider = ({ children }: IProps) => {
   const currentUserQuery = useGetCurrentUserQuery();
   const token = getAccessToken();
   const currentUserData = useMemo(() => currentUserQuery.data, [currentUserQuery.data]);
-  const isAuthenticated = useMemo(() => !!currentUserQuery.data?.id && !!token, [currentUserQuery.data?.id, token]);
+  const isAuthenticated = useMemo(() => !!currentUserQuery.data?._id && !!token, [currentUserQuery.data?._id, token]);
   const initializing = useMemo(() => currentUserQuery.isLoading, [currentUserQuery.isLoading]);
 
   return (

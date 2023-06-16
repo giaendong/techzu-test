@@ -43,7 +43,6 @@ const Comment = mongoose.model('Comments', commentSchema);
 export async function findById(id) {
   let result = await Comment.findById(id).populate('author', '-password');
   result = result.toJSON();
-  delete result._id;
   delete result.__v;
   return result;
 }
@@ -53,46 +52,144 @@ export function createComment(commentData) {
     return comment.save();
 }
 
-export function listReply(parentId) {
-    return new Promise((resolve, reject) => {
-        Comment.find({parentId, deletedAt: null})
-            .sort({createdAt: -1})
-            .populate('author', '-password')
-            .then(comment => resolve(comment))
-            .catch(err => reject(err))
-    });
+const authorLookup = [
+    {
+      $lookup: {
+        from: "users",
+        localField: "author",
+        foreignField: "_id",
+        pipeline: [
+          {
+            $project: { password: 0 }
+          }
+        ],
+        as: "author"
+      }
+    },
+    { $set: { author: { $arrayElemAt: ["$author", 0] } } },
+  ];
+
+function reviewLookup(authorId) {
+  const _authorId = new mongoose.Types.ObjectId(authorId);
+  return [
+    {
+      $lookup: {
+        from: "reviews",
+        localField: "_id",
+        foreignField: "comment",
+        pipeline: [{ $match: { like: 1 } }],
+        as: "likes"
+      }
+    },
+    {
+      $addFields: {
+        "likeCount": { $size: "$likes" }
+      }
+    },
+    {
+      $lookup: {
+        from: "reviews",
+        localField: "_id",
+        foreignField: "comment",
+        pipeline: [{ $match: { like: -1 } }],
+        as: "dislikes"
+      }
+    },
+    {
+      $addFields: {
+        "dislikeCount": { $size: "$dislikes" }
+      }
+    },
+    {
+      $lookup: {
+        from: "reviews",
+        localField: "_id",
+        foreignField: "comment",
+        pipeline: [{$match: { author: _authorId }}],
+        as: "userLikes"
+      }
+    },
+    { 
+      $project: {  
+        __v: 0,
+        likes: 0,
+        dislikes: 0,
+      }
+    },
+  ] 
+}
+
+export function listReply(parentId, authorId) {
+  const _parentId = new mongoose.Types.ObjectId(parentId);
+  return new Promise((resolve, reject) => {
+    Comment.aggregate([
+      {
+        $match: {
+          deletedAt: null,
+          parentId: _parentId
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      ...authorLookup,
+      { 
+        $lookup: {
+          from: "comments",
+          localField: "replies",
+          foreignField: "_id",
+          pipeline: [
+            ...authorLookup,
+            ...reviewLookup(authorId),
+            { $match: { deletedAt: null } },
+            { $sort: { createdAt: -1 } },
+            { $limit: 3 }
+          ],
+          as: "replies"
+        }
+      },
+      ...reviewLookup(authorId)
+    ])
+    .then(comment => resolve(comment))
+    .catch(err => reject(err))
+  })
 }
 
 export function countReplies(parentId) {
   return Comment.countDocuments({parentId, deletedAt: null});
 }
 
-export function listParent(perPage, page) {
+export function listParent(perPage, page, authorId) {
   return new Promise((resolve, reject) => {
-      Comment.find({parentId: null, deletedAt: null})
-          .sort({createdAt: -1})
-          .populate({
-            path: 'replies',
-            perDocumentLimit: 3,
-            options: {
-              sort: {
-                createdAt: -1
-              },
-            },
-            populate: {
-              path: 'author',
-              select: '-password',
-            },
-            match: {
-              deletedAt: null
-            }
-          })
-          .populate('author', '-password')
-          .limit(perPage)
-          .skip(perPage * (page - 1))
-          .then(comment => resolve(comment))
-          .catch(err => reject(err))
-  });
+    Comment.aggregate([
+      {
+        $match: {
+          deletedAt: null,
+          parentId: null
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: perPage * (page - 1) },
+      { $limit: perPage },
+      ...authorLookup,
+      { 
+        $lookup: {
+          from: "comments",
+          localField: "replies",
+          foreignField: "_id",
+          pipeline: [
+            ...authorLookup,
+            ...reviewLookup(authorId),
+            { $match: { deletedAt: null } },
+            { $sort: { createdAt: -1 } },
+            { $limit: 3 }
+          ],
+          as: "replies"
+        }
+      },
+      ...reviewLookup(authorId)
+    ])
+    .then(comment => resolve(comment))
+    .catch(err => reject(err))
+  })
 }
 
 export function countComment() {
