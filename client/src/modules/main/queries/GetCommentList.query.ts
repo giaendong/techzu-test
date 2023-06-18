@@ -11,10 +11,11 @@ export function useGetCommentListQuery(params: GetCommentListParams): QueryObser
     [
       useGetCommentListQueryKey,
       params.page,
-      params.limit
+      params.limit,
+      params.sortBy
     ],
     async () => {
-      const response = await fetch(`${process.env.REACT_APP_API_HOST}/comment?page=${params.page}&limit=${params.limit}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_HOST}/comment?page=${params.page}&limit=${params.limit}${params.sortBy ? `&sortBy=${params.sortBy}` : ''}`, {
         method: 'GET',
         headers
       });

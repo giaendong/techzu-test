@@ -157,7 +157,15 @@ export function countReplies(parentId) {
   return Comment.countDocuments({parentId, deletedAt: null});
 }
 
-export function listParent(perPage, page, authorId) {
+export function listParent(perPage, page, authorId, sortBy) {
+  let sort = {};
+  if (sortBy === 'likes') {
+    sort.likeCount = -1;
+  } else if (sortBy === 'dislikes') {
+    sort.dislikeCount = -1;
+  } else {
+    sort.createdAt = -1;
+  }
   return new Promise((resolve, reject) => {
     Comment.aggregate([
       {
@@ -166,9 +174,6 @@ export function listParent(perPage, page, authorId) {
           parentId: null
         },
       },
-      { $sort: { createdAt: -1 } },
-      { $skip: perPage * (page - 1) },
-      { $limit: perPage },
       ...authorLookup,
       { 
         $lookup: {
@@ -185,7 +190,10 @@ export function listParent(perPage, page, authorId) {
           as: "replies"
         }
       },
-      ...reviewLookup(authorId)
+      ...reviewLookup(authorId),
+      { $sort: sort },
+      { $skip: perPage * (page - 1) },
+      { $limit: perPage },
     ])
     .then(comment => resolve(comment))
     .catch(err => reject(err))

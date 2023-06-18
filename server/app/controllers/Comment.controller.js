@@ -41,7 +41,7 @@ export async function getCommentList(req, res) {
       }
   }
   try {
-    const comments = await listParent(limit, page, req.jwt.userId);
+    const comments = await listParent(limit, page, req.jwt.userId, req.query.sortBy);
     const count = await countComment();
     res.status(200).send({
       comments,

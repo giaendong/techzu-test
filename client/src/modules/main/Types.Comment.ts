@@ -23,9 +23,12 @@ export type LikesType = {
   updatedAt: Date;
 }
 
+export type CommentSortType = 'likes' | 'dislikes';
+
 export type GetCommentListParams = {
   page: number;
   limit: number;
+  sortBy?: 'likes' | 'dislikes';
 }
 
 export type GetCommentListResponse = {

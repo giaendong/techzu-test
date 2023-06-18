@@ -5,7 +5,7 @@ import Navbar from '../../../../components/organisms/Navbar';
 import Input from '../../../../components/atoms/Input';
 import Button from '../../../../components/atoms/Button';
 import { useGetCommentListQuery, useGetCommentListQueryKey, useGetRepliesQuery, useGetRepliesQueryKey } from '../../queries';
-import { CommentType } from '../../Types.Comment';
+import { CommentSortType, CommentType } from '../../Types.Comment';
 import { AuthContext } from '../../../auth/Auth.context';
 import usePostComment from '../../mutations/PostComment.mutation';
 import useDeleteComment from '../../mutations/DeleteComment.mutation';
@@ -21,6 +21,7 @@ const Home: React.FC = (() => {
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const repliesEndRef = useRef<null | HTMLDivElement>(null);
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<CommentSortType | undefined>(undefined);
   const [commentText, setCommentText] = useState('');
   const [replyText, setReplyText] = useState('');
   const [postIsLoading, setPostIsLoading] = useState(false);
@@ -31,7 +32,7 @@ const Home: React.FC = (() => {
   const [socketActiveId, setSocketActiveId] = useState<BasicSocketType | null>(null);
   const limit = 10;
 
-  const {data, isLoading, isFetchedAfterMount} = useGetCommentListQuery({page, limit});
+  const {data, isLoading, isFetchedAfterMount} = useGetCommentListQuery({page, limit, sortBy});
   const commentsData = useMemo(() => data?.comments, [data?.comments]);
   const commentMetaData = useMemo(() => data?.metadata, [data?.metadata]);
 
@@ -60,7 +61,7 @@ const Home: React.FC = (() => {
       if (page !== 1) {
         setPage(1);
       } else {
-        queryClient.invalidateQueries([useGetCommentListQueryKey, 1, limit]);
+        queryClient.invalidateQueries([useGetCommentListQueryKey, 1, limit, sortBy]);
         scrollToBottom();
       }
     },
@@ -73,7 +74,7 @@ const Home: React.FC = (() => {
   const deleteCommentMutation = useDeleteComment({
     onSuccess: () => {
       setPostIsLoading(false);
-      queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit]);
+      queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit, sortBy]);
       if (showRepliesId) {
         queryClient.refetchQueries([useGetRepliesQueryKey, showRepliesId]);
       }
@@ -86,7 +87,7 @@ const Home: React.FC = (() => {
 
   const postReviewMutation = usePostReview({
     onSuccess: () => {
-      queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit]);
+      queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit, sortBy]);
       if (showRepliesId) {
         queryClient.refetchQueries([useGetRepliesQueryKey, showRepliesId]);
       }
@@ -139,11 +140,11 @@ const Home: React.FC = (() => {
         setSocketActiveId(socketData);
       }
       if (socketData && socketData.id && socketData.userId !== currentUserData?._id) {
-        queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit]);
+        queryClient.invalidateQueries([useGetCommentListQueryKey, page, limit, sortBy]);
       }
       if (socketData.type === 'delete') {
         setSocketActiveId(socketData);
-        queryClient.refetchQueries([useGetCommentListQueryKey, page, limit]);
+        queryClient.refetchQueries([useGetCommentListQueryKey, page, limit, sortBy]);
       }
     }
 
@@ -295,6 +296,11 @@ const Home: React.FC = (() => {
       <div className='w-full flex flex-col items-center'>
         <div className='w-full lg:w-1/3 h-screen lg:max-h-[90vh] flex flex-col items-center gap-3 justify-between'>
           <h1 className='pt-20'>Comment System</h1>
+          <div className='w-full flex flex-row justify-between'>
+            <Button buttonType='outlined' onClick={() => setSortBy('likes')} disabled={sortBy === 'likes'}>Most Liked</Button>
+            <Button buttonType='outlined' onClick={() => setSortBy('dislikes')} disabled={sortBy === 'dislikes'}>Most Disliked</Button>
+            <Button buttonType='outlined' onClick={() => setSortBy(undefined)} disabled={sortBy === undefined}>Most Recent</Button>
+          </div>
           <div className='flex flex-row justify-end gap-2 items-center'>
             <Button buttonType='outlined' disabled={page === 1} onClick={() =>setPage(1)}>&#60;&#60;</Button>
             <Button buttonType='outlined' disabled={page === 1} onClick={() =>setPage(page - 1)}>&#60;</Button>
